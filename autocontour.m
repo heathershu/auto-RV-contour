@@ -83,13 +83,19 @@ if ~folder
 end
 % Call load images to load image stack & increase resolution if res_tf = 1 
 [images, hires_images, info] = loadimages(folder);
+
 % Sort image stack so images are in order of acquisition number
-handles.images = sortImages(images, info);
+[handles.images, handles.slice_loc, im_per_slice] = sortImages(images, info);
 handles.originalImages = handles.images;
-handles.hires_images = sortImages(hires_images, info);
-% Get mm per square pixel
+[handles.hires_images, ~, ~] = sortImages(hires_images, info);
+
+% Set important dicom data 
 handles.pixelmm = info(1).data.PixelSpacing(1)^2;
-% Plot first slice
+handles.sliceThickness = info(1).data.SliceThickness;
+handles.images_per_slice = im_per_slice;
+
+
+% Plot first image
 imagesc(handles.axes1, handles.images(:,:,1)); colormap(gray); axis off;
 handles.currentImg = 1;
 handles.NumImages = size(handles.images,3);
@@ -139,6 +145,9 @@ function menu_edit_crop_Callback(hObject, eventdata, handles)
 % Get user selected rectangle for cropping
 r = round(getrect(handles.axes1));
 xmin = r(1); ymin = r(2); width = r(3); height = r(4);
+if width == 0 || height == 0
+    return;
+end
 % Initialize cropped images variable
 handles.cropped_images = zeros(height+1, width+1, handles.NumImages);
 handles.ROIs = zeros(height+1, width+1, handles.NumImages);
@@ -191,7 +200,7 @@ h.delete;
 [x,y] = find(mask);
 vals = handles.images(x,y,handles.currentImg);
 avg = mean(vals(:));
-stdev = std(vals(:))*5;
+stdev = std(vals(:))*8;
 m = max(max(handles.images(:,:,handles.currentImg)));
 
 for i = 1:handles.NumImages
